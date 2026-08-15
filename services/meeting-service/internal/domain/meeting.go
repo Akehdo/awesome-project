@@ -29,6 +29,7 @@ type Meeting struct {
 }
 
 func NewMeeting(
+	id uuid.UUID,
 	originalFilename string,
 	objectKey string,
 	contentType string,
@@ -37,6 +38,10 @@ func NewMeeting(
 	originalFilename = strings.TrimSpace(originalFilename)
 	objectKey = strings.TrimSpace(objectKey)
 	contentType = strings.TrimSpace(contentType)
+
+	if id == uuid.Nil {
+		return nil, ErrMeetingIDRequired
+	}
 
 	if originalFilename == "" {
 		return nil, ErrFilenameRequired
@@ -55,6 +60,7 @@ func NewMeeting(
 	}
 
 	return &Meeting{
+		ID:               id,
 		OriginalFilename: originalFilename,
 		ObjectKey:        objectKey,
 		ContentType:      contentType,

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -23,8 +24,8 @@ type Config struct {
 }
 
 func NewConfig() (*Config, error) {
-	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("load .env: %w", err)
+	if err := loadDotEnv(); err != nil {
+		return nil, err
 	}
 
 	postgresDSN := strings.TrimSpace(os.Getenv("POSTGRES_DSN"))
@@ -79,4 +80,23 @@ func NewConfig() (*Config, error) {
 		MinioRootPassword: minioRootPassword,
 		MinioUseSSL:       minioUseSSL,
 	}, nil
+}
+
+func loadDotEnv() error {
+	paths := []string{
+		".env",
+		filepath.Join("..", "..", ".env"),
+	}
+
+	for _, path := range paths {
+		err := godotenv.Load(path)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("load %s: %w", path, err)
+		}
+	}
+
+	return nil
 }

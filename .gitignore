@@ -1,6 +1,5 @@
 # Secrets and local environment
 .env
-services/*/.env
 .env.*
 !.env.example
 
@@ -15,6 +14,11 @@ dist/
 *.test
 *.out
 coverage.*
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
 
 # Go workspace
 go.work

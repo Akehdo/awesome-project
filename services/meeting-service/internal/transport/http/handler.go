@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -12,7 +11,10 @@ import (
 	"meeting-service/internal/service"
 )
 
-const maxRequestBodySize = 1 << 20
+const (
+	maxFileSize       int64 = 100 << 20 // 100 МБ
+	multipartOverhead       = 1 << 20   // запас на заголовки multipart
+)
 
 type MeetingService interface {
 	Create(
@@ -35,24 +37,64 @@ func (h *MeetingHandler) Create(
 	w nethttp.ResponseWriter,
 	r *nethttp.Request,
 ) {
-	var request createMeetingRequest
+	r.Body = nethttp.MaxBytesReader(
+		w,
+		r.Body,
+		maxFileSize+multipartOverhead,
+	)
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		if _, ok := errors.AsType[*nethttp.MaxBytesError](err); ok {
+			writeError(
+				w,
+				nethttp.StatusRequestEntityTooLarge,
+				"file is too large",
+			)
+			return
+		}
 
-	r.Body = nethttp.MaxBytesReader(w, r.Body, maxRequestBodySize)
+		writeError(w, nethttp.StatusBadRequest, "file is required")
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+	defer file.Close()
 
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(&request); err != nil {
-		writeError(w, nethttp.StatusBadRequest, "invalid request body")
+	if header.Size <= 0 {
+		writeError(w, nethttp.StatusBadRequest, "file must not be empty")
 		return
 	}
 
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		writeError(w, nethttp.StatusBadRequest, "request body must contain one JSON object")
+	if header.Size > maxFileSize {
+		writeError(
+			w,
+			nethttp.StatusRequestEntityTooLarge,
+			"file is too large",
+		)
 		return
 	}
 
-	meeting, err := h.service.Create(r.Context(), request.toServiceInput())
+	contentType, err := detectContentType(file)
+	if err != nil {
+		log.Printf("inspect uploaded file: %v", err)
+		writeError(w, nethttp.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	if !isAllowedAudioContentType(contentType) {
+		writeError(w, nethttp.StatusUnsupportedMediaType, "unsupported audio format")
+		return
+	}
+
+	input := service.CreateMeetingInput{
+		OriginalFilename: header.Filename,
+		ContentType:      contentType,
+		SizeBytes:        header.Size,
+		Reader:           file,
+	}
+
+	meeting, err := h.service.Create(r.Context(), input)
 	if err != nil {
 		if isCreateMeetingValidationError(err) {
 			writeError(w, nethttp.StatusBadRequest, err.Error())
@@ -67,8 +109,33 @@ func (h *MeetingHandler) Create(
 	writeJSON(w, nethttp.StatusCreated, newCreateMeetingResponse(meeting))
 }
 
+func detectContentType(file io.ReadSeeker) (string, error) {
+	buffer := make([]byte, 512)
+
+	n, err := io.ReadFull(file, buffer)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return "", err
+	}
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+
+	return nethttp.DetectContentType(buffer[:n]), nil
+}
+
+func isAllowedAudioContentType(contentType string) bool {
+	switch contentType {
+	case "audio/mpeg", "audio/wave", "audio/aiff", "application/ogg":
+		return true
+	default:
+		return false
+	}
+}
+
 func isCreateMeetingValidationError(err error) bool {
-	return errors.Is(err, domain.ErrFilenameRequired) ||
+	return errors.Is(err, service.ErrMeetingFileRequired) ||
+		errors.Is(err, domain.ErrFilenameRequired) ||
 		errors.Is(err, domain.ErrObjectKeyRequired) ||
 		errors.Is(err, domain.ErrMeetingContentTypeEmpty) ||
 		errors.Is(err, domain.ErrInvalidMeetingSize)

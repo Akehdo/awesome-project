@@ -12,13 +12,14 @@ import (
 const (
 	createMeetingQuery = `
 		INSERT INTO meetings (
+		    id,
 			original_filename,
 			object_key,
 			content_type,
 			size_bytes,
 			created_at
 		)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id`
 )
 
@@ -38,6 +39,7 @@ func (r *MeetingRepository) Create(ctx context.Context, meeting *domain.Meeting)
 	err := r.db.QueryRowContext(
 		ctx,
 		createMeetingQuery,
+		meeting.ID,
 		meeting.OriginalFilename,
 		meeting.ObjectKey,
 		meeting.ContentType,

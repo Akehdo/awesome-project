@@ -93,8 +93,17 @@ services:
       dockerfile: Dockerfile
     container_name: ai_service
     restart: unless-stopped
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
     ports:
       - "${AI_SERVICE_PORT}:8001"
+    environment:
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_BUCKET_NAME: "${MINIO_BUCKET_NAME}"
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+      MINIO_USE_SSL: "${MINIO_USE_SSL}"
     healthcheck:
       test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" ]
       interval: 10s

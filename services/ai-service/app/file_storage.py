@@ -3,9 +3,9 @@ from pathlib import Path
 from minio import Minio
 
 
-class MinioStorage:
-    def __init__(self, minio_client: Minio, bucket_name: str):
-        self._client = minio_client
+class FileStorage:
+    def __init__(self, client: Minio, bucket_name: str):
+        self._client = client
         self._bucket_name = bucket_name
 
     def download(self, object_key: str, destination: Path) -> Path:

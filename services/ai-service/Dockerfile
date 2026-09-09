@@ -7,6 +7,10 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory inside the container
 WORKDIR /app
 
+# Whisper uses ffmpeg to decode audio files.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy only dependencies first to leverage Docker layer caching
 COPY ./requirements.txt /app/requirements.txt
 

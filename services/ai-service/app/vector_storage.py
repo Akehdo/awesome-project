@@ -67,35 +67,5 @@ class VectorStorage:
             limit=limit,
         ).points
 
-    def scroll(
-        self,
-        object_key: str | None = None,
-        limit: int = 10,
-        offset: int | str | None = None,
-    ) -> tuple[list[models.Record], int | str | None]:
-        if not 1 <= limit <= 100:
-            raise ValueError("limit must be between 1 and 100")
-
-        if not self._client.collection_exists(self._collection_name):
-            return [], None
-
-        scroll_filter = None
-        if object_key is not None:
-            scroll_filter = models.Filter(must=[
-                models.FieldCondition(
-                    key="object_key",
-                    match=models.MatchValue(value=object_key),
-                ),
-            ])
-
-        return self._client.scroll(
-            collection_name=self._collection_name,
-            scroll_filter=scroll_filter,
-            limit=limit,
-            offset=offset,
-            with_payload=True,
-            with_vectors=False,
-        )
-
     def close(self) -> None:
         self._client.close()

@@ -2,14 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_chunk_service, get_processing_service
+from app.dependencies import get_processing_service
 from app.schemas import (
     ProcessMeetingRequest,
     ProcessMeetingResponse,
-    ListChunksRequest,
-    ListChunksResponse,
 )
-from app.service import ChunkService, ProcessingService
+from app.service import ProcessingService
 
 
 router = APIRouter()
@@ -36,14 +34,6 @@ def process_meeting(
         object_key=body.object_key,
         file_size=file_size,
     )
-
-
-@router.post("/meetings/chunks", response_model=ListChunksResponse, tags=["meetings"])
-def list_chunks(
-    body: ListChunksRequest,
-    chunk_service: Annotated[ChunkService, Depends(get_chunk_service)],
-) -> ListChunksResponse:
-    return chunk_service.list_chunks(body)
 
 
 @router.get("/health", tags=["system"])

@@ -6,7 +6,7 @@ from qdrant_client import QdrantClient
 from app.config import settings
 from app.embedder import Embedder
 from app.file_storage import FileStorage
-from app.service import ChunkService, ProcessingService
+from app.service import ProcessingService
 from app.transcriber import Transcriber
 from app.vector_storage import VectorStorage
 
@@ -50,11 +50,6 @@ def get_vector_storage() -> VectorStorage:
         collection_name="knowledge_base",
         model_name=Embedder.DEFAULT_MODEL_NAME,
     )
-
-@lru_cache
-def get_chunk_service() -> ChunkService:
-    return ChunkService(vector_storage=get_vector_storage())
-
 
 @lru_cache
 def get_transcriber() -> Transcriber:

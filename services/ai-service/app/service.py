@@ -5,30 +5,6 @@ from app.file_storage import FileStorage
 from app.transcriber import Transcriber
 from app.embedder import Embedder
 from app.vector_storage import VectorStorage
-from app.schemas import ListChunksRequest, ListChunksResponse, StoredChunk
-
-
-class ChunkService:
-    def __init__(self, vector_storage: VectorStorage):
-        self._vector_storage = vector_storage
-
-    def list_chunks(self, request: ListChunksRequest) -> ListChunksResponse:
-        offset = request.offset
-        if offset is not None and not isinstance(offset, int):
-            offset = str(offset)
-
-        points, next_offset = self._vector_storage.scroll(
-            object_key=request.object_key,
-            limit=request.limit,
-            offset=offset,
-        )
-        return ListChunksResponse(
-            points=[
-                StoredChunk(id=point.id, payload=point.payload or {})
-                for point in points
-            ],
-            next_page_offset=next_offset,
-        )
 
 
 class ProcessingService:
@@ -76,12 +52,13 @@ class ProcessingService:
             # 6. Создаём payload для каждого embedding
             payloads = [
                 {
+                    "chunk_index": index,
                     "text": segment["text"].strip(),
                     "start": segment["start"],
                     "end": segment["end"],
                     "object_key": object_key,
                 }
-                for segment in segments
+                for index, segment in enumerate(segments)
             ]
 
             # 7. Сохраняем в Qdrant

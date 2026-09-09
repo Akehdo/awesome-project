@@ -47,6 +47,7 @@ class ProcessingTests(unittest.TestCase):
         vectors.upload.assert_called_once_with(
             vectors=[[0.1, 0.2, 0.3]],
             payloads=[{
+                "chunk_index": 0,
                 "text": "Hello", "start": 0.0, "end": 1.0,
                 "object_key": "meetings/one/source",
             }],
@@ -71,31 +72,6 @@ class ProcessingTests(unittest.TestCase):
 
 
 class VectorStorageTests(unittest.TestCase):
-    def test_scroll_filters_and_paginates_without_vectors(self):
-        client = QdrantClient(":memory:")
-        self.addCleanup(client.close)
-        storage = VectorStorage(client, "test", "unused")
-        self.assertEqual(storage.scroll(), ([], None))
-        client.create_collection(
-            collection_name="test",
-            vectors_config=models.VectorParams(size=3, distance=models.Distance.COSINE),
-        )
-        storage.upload(
-            [[1.0, 0.0, 0.0]] * 3,
-            [{"object_key": "first"}, {"object_key": "second"}, {"object_key": "first"}],
-        )
-        first, offset = storage.scroll(object_key="first", limit=1)
-        self.assertEqual(len(first), 1)
-        self.assertIsNotNone(offset)
-        second, next_offset = storage.scroll(object_key="first", limit=1, offset=offset)
-        self.assertEqual(len(second), 1)
-        self.assertIsNone(next_offset)
-        self.assertNotEqual(first[0].id, second[0].id)
-        for point in first + second:
-            self.assertEqual(point.payload["object_key"], "first")
-            self.assertIsNone(point.vector)
-        self.assertEqual(storage.scroll(object_key="missing"), ([], None))
-
     def test_two_audio_files_keep_separate_points(self):
         client = QdrantClient(":memory:")
         self.addCleanup(client.close)

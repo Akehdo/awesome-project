@@ -1,0 +1,38 @@
+logging {
+  level = "info"
+}
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "microservices" {
+  targets = discovery.docker.containers.targets
+
+  // Оставляем только наши два микросервиса
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(meeting_service|ai_service)"
+    action        = "keep"
+  }
+
+  // container name -> service
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    replacement   = "$1"
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "microservices" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.microservices.output
+  forward_to = [loki.write.server.receiver]
+}
+
+loki.write "server" {
+  endpoint {
+    url = "http://104.207.64.65:3100/loki/api/v1/push"
+  }
+}

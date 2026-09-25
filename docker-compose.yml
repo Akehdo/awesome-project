@@ -130,6 +130,22 @@ services:
       timeout: 5s
       retries: 5
 
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    command:
+      - run
+      - /etc/alloy/config.alloy
+
+    ports:
+      - "12345:12345"
+
 volumes:
   meeting_postgres_data:
   minio_data:
